@@ -1,0 +1,127 @@
+steps to understand end to end project
+Part-1:
+Automated infra
+
+part-2:CI/CD-----USING JENKINS & Argo cd---end to end k8s 3 teir project
+
+Deploy to EKS cluster using ARGOCD
+
+| **Aspect**                       | **Without ArgoCD (Traditional Way)**                                                  | **With ArgoCD (GitOps Way)**                                                     |
+| -------------------------------- | ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| **Deployment Method**            | Manually apply manifests using `kubectl apply -f` or use scripts / CI pipelines.      | ArgoCD continuously syncs manifests/Helm charts from Git repo to EKS.            |
+| **Source of Truth**              | Configuration might be spread across local machines, CI jobs, or scripts.             | Git repository is the **single source of truth** for all deployments.            |
+| **Automation Level**             | Semi-automated — someone triggers a pipeline or runs `kubectl`.                       | Fully automated — ArgoCD detects Git changes and syncs automatically.            |
+| **Visibility / UI**              | No visual dashboard — need to check `kubectl get pods` or CloudWatch logs.            | Rich ArgoCD UI shows app status (Healthy, OutOfSync, etc.) and cluster health.   |
+| **Drift Detection**              | No automatic drift detection — manual troubleshooting if cluster differs from config. | Automatically detects and fixes **configuration drift** between Git and EKS.     |
+| **Rollback / Versioning**        | Rollback requires manually re-running old manifests or CI jobs.                       | Rollback = simply revert the Git commit → ArgoCD redeploys the previous version. |
+| **Multi-Environment Deployment** | Harder to maintain consistent YAMLs for `dev`, `staging`, and `prod`.                 | Easily manage multiple clusters/environments using Git branches or folders.      |
+| **Security & Access Control**    | Needs cluster access (kubectl context, kubeconfig) for deployments.                   | Developers can deploy via Git — **no direct cluster access** needed.             |
+| **Auditability**                 | Hard to track who changed what and when.                                              | Every change is tracked via Git commits and ArgoCD audit logs.                   |
+| **Error Handling**               | Manual debugging and redeploy required if something fails.                            | ArgoCD continuously monitors and retries syncs if failures occur.                |
+| **Consistency**                  | Prone to manual errors, inconsistent versions across clusters.                        | Guarantees **declarative consistency** — Git defines exact desired state.        |
+
+_________________________________________________________________________________
+PART-3:MONITORING
+1.custom domain-------route53 integeration
+2.prometheus,grafana
+
+__________________
+project----
+1.create jenkins server--ec2-manually
+inst type---t2.2xlarge
+storage--30
+sg--open ports for jenkins & sonarqube--8080,9000
+install----jenkins,Docker,Terraform,AWSCLI,with using container install sonarqube, install nexus,trivy---------------using userdata or scripts
+-now create pipeline of jenkins 
+jenkins--plugins---aws credentials--used to store credential in aws ,pipeline aws steps,Terraform,pipeline stahe view
+
+using jenkins pipeline---create aws resources eks,vpc and run it
+properties([
+    parameters([
+        string(
+            defaultValue: 'dev',
+            name: 'Environment'
+        ),
+        choice(
+            choices: ['plan', 'apply', 'destroy'], 
+            name: 'Terraform_Action'
+        )])
+])
+pipeline {
+    agent any
+    stages {
+        stage('Preparing') {
+            steps {
+                sh 'echo Preparing'
+            }
+        }
+        stage('Git Pulling') {
+            steps {
+                git branch: 'master', url: 'https://github.com/AmanPathak-DevOps/EKS-Terraform-GitHub-Actions.git'
+            }
+        }
+        stage('Init') {
+            steps {
+                withAWS(credentials: 'aws-creds', region: 'us-east-1') {
+                sh 'terraform -chdir=eks/ init'
+                }
+            }
+        }
+        stage('Validate') {
+            steps {
+                withAWS(credentials: 'aws-creds', region: 'us-east-1') {
+                sh 'terraform -chdir=eks/ validate'
+                }
+            }
+        }
+        stage('Action') {
+            steps {
+                withAWS(credentials: 'aws-creds', region: 'us-east-1') {
+                    script {    
+                        if (params.Terraform_Action == 'plan') {
+                            sh "terraform -chdir=eks/ plan -var-file=${params.Environment}.tfvars"
+                        }   else if (params.Terraform_Action == 'apply') {
+                            sh "terraform -chdir=eks/ apply -var-file=${params.Environment}.tfvars -auto-approve"
+                        }   else if (params.Terraform_Action == 'destroy') {
+                            sh "terraform -chdir=eks/ destroy -var-file=${params.Environment}.tfvars -auto-approve"
+                        } else {
+                            error "Invalid value for Terraform_Action: ${params.Terraform_Action}"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+_________________________________________________________________________________________________________________________
+it creates 38 resources
+1---create vpc
+jump server usage--------
+“We use a jump server because private EKS nodes and servers inside the VPC aren’t accessible directly from the internet. The jump server sits in a public subnet and acts as a secure entry point.
+Only authorized users with SSH access
+to the jump server can reach the private servers or the EKS cluster. As a DevOps engineer, I manage and restrict this access using IAM, security groups, and key-based authentication.”
+
+for example---with jenkins server---we cant acess the eks server, and with jump server only we can acess the eks server
+
+d/f of jump server & NAT gate way:| **Component**                  | **Purpose**                                                                                   | **Direction of Traffic** | **Used For**                                                   |
+| ------------------------------ | --------------------------------------------------------------------------------------------- | ------------------------ | -------------------------------------------------------------- |
+| **Jump Server (Bastion Host)** | Secure access *into* private instances from the internet                                      | **Inbound access**       | SSH or management access *from you → private EC2/EKS nodes*    |
+| **NAT Gateway**                | Allows private instances *to access the internet* (e.g., for package updates, pulling images) | **Outbound access**      | Private instances → Internet (e.g., yum, apt-get, docker pull) |
+
+Jump server: lets you log into private resources.
+
+NAT Gateway: lets private resources talk out to the internet — it does not allow you to log in through it.
+
+So, a NAT Gateway can never replace a jump server.
+________________________________________________________________________________________________________________________________________
+“A NAT Gateway and a Jump Server serve completely different purposes.
+The NAT Gateway provides outbound internet access for private subnets, while the jump server provides inbound access for administrators to reach private EC2 instances or EKS worker nodes.
+If the EKS API endpoint is private, we connect to it via a jump server or VPN — not through the NAT Gateway.”
+__________________----
+2--create jump server in aws using manual ec2 process-------t2.meduim
+storage--30gb
+install--aws cli, install kubectl, helm, eks
+install all these using user data---------while createing instance---best practice in organisations.
+__________________________________________________
+
+________________________________________________________
