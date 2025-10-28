@@ -26,6 +26,7 @@ PART-3:MONITORING
 2.prometheus,grafana
 
 __________________
+document link-----------https://blog.stackademic.com/advanced-end-to-end-devsecops-kubernetes-three-tier-project-using-aws-eks-argocd-prometheus-fbbfdb956d1a
 project----
 1.create jenkins server--ec2-manually
 inst type---t2.2xlarge
@@ -122,6 +123,16 @@ __________________----
 storage--30gb
 install--aws cli, install kubectl, helm, eks
 install all these using user data---------while createing instance---best practice in organisations.
+__________
+update eks config
+aws eks update kubeconfig --cluster dev-meduim-eks-cluster --region us-east-1
 __________________________________________________
+upto now---
+1.setup--eks cluster, & jumpserver
 
+we are seeting up now
+2.LB, ARGOCD
+create AWS LB------
+eksctl create iamserviceaccount --cluster=dev-meduim-eks-cluster --namespace=kube-system --name=aws-loadbalancer-controller --role-name Amazoneksloadbalancercontrollerrole --attach-policy-arn=arn:aws:iam:407622020962:policy/AWSLoadBalancercontrollerIAMPolicy --approve --region=us-east-1
+now using helm install ingress controller onto k8s cluster
 ________________________________________________________
