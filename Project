@@ -135,4 +135,9 @@ we are seeting up now
 create AWS LB------
 eksctl create iamserviceaccount --cluster=dev-meduim-eks-cluster --namespace=kube-system --name=aws-loadbalancer-controller --role-name Amazoneksloadbalancercontrollerrole --attach-policy-arn=arn:aws:iam:407622020962:policy/AWSLoadBalancercontrollerIAMPolicy --approve --region=us-east-1
 now using helm install ingress controller onto k8s cluster
+-------through the jenkins server we can't able to connct to eks cluster which is placed in private server it shows error
+-------but we can connect to the eks through jump server
 ________________________________________________________
+3-run command of ARGOCD---then it will run automatically
+i.create name space of argocd---kubectl creta namespace argocd
+ii.run command---kubectl apply -n argocd-f  http://argocd.yaml------------used k8s manifest file to install argocd
